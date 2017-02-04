@@ -1,17 +1,23 @@
 package com.eliteams.quick4j.web.controller;
 
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Calendar;
 
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.alibaba.fastjson.JSONObject;
+import com.eliteams.quick4j.core.generic.MsgType;
+import com.eliteams.quick4j.core.util.xmlUtil.ParseReceiveXml;
+import com.eliteams.quick4j.web.model.xmlEntity.ReceiveXmlEntity;
 
 /**
  * 
@@ -33,42 +39,86 @@ public class WebHttpController {
 	* @return  String
 	 */
 	@ResponseBody
-    @RequestMapping("accessing")
-    public String weixin(HttpServletRequest request) {
-		String signature = request.getParameter("signature");  
-        String timestamp = request.getParameter("timestamp");  
-        String nonce = request.getParameter("nonce");  
-        String echostr = request.getParameter("echostr");  
-        if(isEmpty(signature)){  
-            return "signature can't be null"; 
-        }  
-        if(isEmpty(timestamp)){  
-            return "timestamp can't be null";
-        }  
-        if(isEmpty(nonce)){  
-            return "nonce can't be null";
-        }  
-        if(isEmpty(echostr)){  
-            return "echostr can't be null";
-        }  
-        String[] ArrTmp = { Token, timestamp, nonce };  
-        Arrays.sort(ArrTmp);  
-        StringBuffer sb = new StringBuffer();  
-        for (int i = 0; i < ArrTmp.length; i++) {  
-            sb.append(ArrTmp[i]);  
-        }  
-        String pwd = Encrypt(sb.toString());  
-           
-        log.info("signature:"+signature+"timestamp:"+timestamp+"nonce:"+nonce+"pwd:"+pwd+"echostr:"+echostr);  
-          
-        if(trim(pwd).equals(trim(signature))){  
-            this.echostr =echostr;  
-            return echostr;
-        }else{  
-            return "fail";
-        } 
+	@RequestMapping(value = "accessing", produces = {"application/json;charset=UTF-8"})
+    public String weixin(HttpServletRequest request,HttpServletResponse response) {
+		//access(request,response);
+		try{
+			String msg=acceptMessage(request,response);
+			if(!msg.equals("")){
+				return msg;
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		return "";
     }
-	 private String Encrypt(String strSrc) {  
+	private String acceptMessage(HttpServletRequest request, HttpServletResponse response) throws IOException {  
+        // 处理接收消息  
+        ServletInputStream in = request.getInputStream();  
+        StringBuilder content = new StringBuilder();  
+        byte[] b = new byte[1024];  
+        int lens = -1;  
+        while ((lens = in.read(b)) > 0) {  
+            content.append(new String(b, 0, lens));  
+        }  
+        String strcont = content.toString();// 内容
+        ReceiveXmlEntity xmlEntity=new ParseReceiveXml().getMsgEntity(strcont);
+        if(xmlEntity.getMsgType().equals(MsgType.Text)){
+        	 StringBuffer str = new StringBuffer();  
+             str.append("<xml>");  
+             str.append("<ToUserName><![CDATA[" + xmlEntity.getFromUserName() + "]]></ToUserName>");  
+             str.append("<FromUserName><![CDATA[" + xmlEntity.getToUserName() + "]]></FromUserName>");  
+             str.append("<CreateTime>" +  Calendar.getInstance().getTimeInMillis() / 1000 + "</CreateTime>");  
+             str.append("<MsgType><![CDATA[" + xmlEntity.getMsgType() + "]]></MsgType>");  
+             str.append("<Content><![CDATA[你说的是：" + xmlEntity.getContent() + "，吗？]]></Content>");  
+             str.append("</xml>");  
+             return str.toString();
+        }
+        return "";
+    }  
+	/**
+	 * 
+	* TODO(验证URL真实性) 
+	* @param request
+	* @param response
+	* @throws IOException  void
+	 */
+	@SuppressWarnings("unused")
+	private String access(HttpServletRequest request, HttpServletResponse response) throws IOException { 
+		String signature = request.getParameter("signature");  
+	    String timestamp = request.getParameter("timestamp");  
+	    String nonce = request.getParameter("nonce");  
+	    String echostr = request.getParameter("echostr");  
+	    if(isEmpty(signature)){  
+	        return "signature can't be null"; 
+	    }  
+	    if(isEmpty(timestamp)){  
+	        return "timestamp can't be null";
+	    }  
+	    if(isEmpty(nonce)){  
+	        return "nonce can't be null";
+	    }  
+	    if(isEmpty(echostr)){  
+	        return "echostr can't be null";
+	    }  
+	    String[] ArrTmp = { Token, timestamp, nonce };  
+	    Arrays.sort(ArrTmp);  
+	    StringBuffer sb = new StringBuffer();  
+	    for (int i = 0; i < ArrTmp.length; i++) {  
+	        sb.append(ArrTmp[i]);  
+	    }  
+	    String pwd = Encrypt(sb.toString());  
+	       
+	    log.info("signature:"+signature+"timestamp:"+timestamp+"nonce:"+nonce+"pwd:"+pwd+"echostr:"+echostr);  
+	      
+	    if(trim(pwd).equals(trim(signature))){  
+	        this.echostr =echostr;  
+	        return echostr;
+	    }else{  
+	        return "fail";
+	    }
+	}
+	private String Encrypt(String strSrc) {  
 	        MessageDigest md = null;  
 	        String strDes = null;  
 	  
