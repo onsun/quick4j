@@ -41,8 +41,9 @@ public class WebHttpController {
 	@ResponseBody
 	@RequestMapping(value = "accessing", produces = {"application/json;charset=UTF-8"})
     public String weixin(HttpServletRequest request,HttpServletResponse response) {
-		//access(request,response);
+		
 		try{
+			//access(request,response);
 			String msg=acceptMessage(request,response);
 			if(!msg.equals("")){
 				return msg;
