@@ -1,6 +1,11 @@
 package com.eliteams.quick4j.web.controller;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -12,10 +17,15 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.sword.wechat4j.common.Config;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.eliteams.quick4j.core.generic.MsgType;
+import com.eliteams.quick4j.core.util.xmlUtil.MenuUtil;
 import com.eliteams.quick4j.core.util.xmlUtil.ParseReceiveXml;
 import com.eliteams.quick4j.web.model.xmlEntity.ReceiveXmlEntity;
 
@@ -153,5 +163,64 @@ public class WebHttpController {
     private String trim(String str){  
         return null !=str  ? str.trim() : str;  
     } 
-
+    /**
+    * 创建菜单
+    * */
+    @RequestMapping("/createMenu")
+    public void createMenu(){
+	    //调用UTI执行创建菜单的动作
+	    int status = MenuUtil.createMenu(MenuUtil.getMenu());
+	    if(status==0){
+	    	System.out.println("菜单创建成功！");
+	    }else{
+	    	System.out.println("菜单创建失败！");
+	    }
+    }
+    /**
+     * 网页授权
+     * */
+     @RequestMapping("/connectUserInfo")
+     public String connectUserInfo(Model model,String code){
+    	 System.out.println(code);
+    	 String url="https://api.weixin.qq.com/sns/oauth2/access_token?appid="+Config.instance().getAppid()+"&secret="+Config.instance().getAppSecret()+"&code="+code+"&grant_type=authorization_code"; 
+    	 /*String url="https://api.weixin.qq.com/sns/oauth2/access_token";
+    	 JSONObject param=new JSONObject();
+    	 param.put("appid", Config.instance().getAppid());
+    	 param.put("secret", Config.instance().getAppSecret());
+    	 param.put("code", code);
+    	 param.put("grant_type", "authorization_code");*/
+    	 JSONObject msg=getJsonByUrl(url,"");
+    	 String urlUserInfo="https://api.weixin.qq.com/sns/userinfo?access_token="+msg.getString("access_token")+"&openid="+msg.getString("openid")+"&lang=zh_CN";
+    	 JSONObject userInfo=getJsonByUrl(urlUserInfo, "");
+    	 model.addAttribute("nickname", userInfo.getString("nickname"));
+    	 model.addAttribute("headimgurl", userInfo.getString("headimgurl"));
+    	 return "/test/firstPage";
+     }
+     public static JSONObject getJsonByUrl(String path,String param){
+ 		try {
+ 			URL url = new URL(path);
+ 			HttpURLConnection http = (HttpURLConnection) url.openConnection();
+ 			http.setDoOutput(true);
+ 			http.setDoInput(true);
+ 			http.setRequestMethod("POST");
+ 			http.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+ 			http.connect();
+ 			OutputStream os = http.getOutputStream();
+ 			os.write(param.getBytes("UTF-8"));
+ 			os.close();
+ 	
+ 			InputStream is = http.getInputStream();
+ 			int size = is.available();
+ 			byte[] bt = new byte[size];
+ 			is.read(bt);
+ 			String message = new String(bt, "UTF-8");
+ 			JSONObject jsonMsg = JSON.parseObject(message);
+ 			return jsonMsg;
+ 		} catch (MalformedURLException e) {
+ 			e.printStackTrace();
+ 		} catch (IOException e) {
+ 			e.printStackTrace();
+ 		}
+ 		return null;
+ 	}
 }
